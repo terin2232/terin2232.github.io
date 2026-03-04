@@ -1,0 +1,491 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity and Orbits - Bigger Initial Sizes</title>
+    <style>
+        body {
+            margin: 0; overflow: hidden; background-color: #000;
+            background-image: radial-gradient(circle at center, #151515 0%, #000 100%);
+            color: #fff; font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px; user-select: none;
+        }
+        canvas { display: block; }
+
+        .panel {
+            background: rgba(40, 40, 40, 0.9); border: 1px solid #555;
+            border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+            position: absolute;
+        }
+
+        #right-panel {
+            top: 15px; right: 15px; width: 250px;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .preset-container {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+            background: #222; padding: 8px; border-radius: 6px;
+        }
+        .preset-btn {
+            background: #444; border: 2px solid transparent; color: white;
+            padding: 10px 5px; border-radius: 6px; cursor: pointer;
+            font-size: 16px; transition: 0.2s;
+        }
+        .preset-btn:hover { background: #555; }
+        .preset-btn.active { border-color: #f1c40f; background: #333; }
+
+        .toggle-group { display: flex; flex-direction: column; gap: 10px; }
+        .toggle-item { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; }
+        .toggle-item input { transform: scale(1.2); cursor: pointer; }
+
+        .slider-group { background: #333; padding: 10px; border-radius: 6px; }
+        .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #ddd; }
+        .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: #aaa; margin-top: 2px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: #3498db; }
+
+        #bottom-panel {
+            bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 20px;
+            padding: 10px 25px; border-radius: 30px;
+        }
+        .playback-controls { display: flex; align-items: center; gap: 10px; }
+        .btn-icon {
+            background: #3498db; color: white; border: none; border-radius: 50%;
+            width: 40px; height: 40px; cursor: pointer; font-size: 18px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .btn-icon:hover { background: #2980b9; }
+        .btn-icon.play-pause { background: #2ecc71; width: 50px; height: 50px; font-size: 24px; }
+        .btn-icon.play-pause:hover { background: #27ae60; }
+        .btn-icon.step { background: #95a5a6; }
+
+        .time-box {
+            background: #111; padding: 8px 15px; border-radius: 5px;
+            font-size: 15px; font-weight: bold; font-family: monospace;
+            min-width: 130px; text-align: center; border: 1px solid #444; color: #f1c40f;
+        }
+
+        #speed-panel {
+            bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 8px;
+            background: transparent; border: none; box-shadow: none; padding: 0;
+        }
+        .radio-item {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            background: rgba(40,40,40,0.8); padding: 5px 10px; border-radius: 15px;
+            border: 1px solid #555; font-size: 12px;
+        }
+        .radio-item:hover { background: rgba(60,60,60,0.9); }
+    </style>
+</head>
+<body>
+
+    <canvas id="simCanvas"></canvas>
+
+    <div id="speed-panel" class="panel">
+        <label class="radio-item"><input type="radio" name="speed" value="3"> ทำงานเร็ว</label>
+        <label class="radio-item"><input type="radio" name="speed" value="1" checked> ปกติ</label>
+        <label class="radio-item"><input type="radio" name="speed" value="0.2"> ทำงานช้า</label>
+    </div>
+
+    <div id="right-panel" class="panel">
+        <div class="preset-container">
+            <button class="preset-btn active" data-mode="1" title="ดวงอาทิตย์ - โลก">☀️🌍</button>
+            <button class="preset-btn" data-mode="2" title="ดวงอาทิตย์ - โลก - ดวงจันทร์">☀️🌍🌑</button>
+            <button class="preset-btn" data-mode="3" title="โลก - ดวงจันทร์">🌍🌑</button>
+            <button class="preset-btn" data-mode="4" title="โลก - ดาวเทียม">🌍🛰️</button>
+        </div>
+
+        <div class="toggle-group">
+            <label class="toggle-item"><input type="checkbox" id="showGravity"> แรงโน้มถ่วง <span style="color:#3498db;">→</span></label>
+            <label class="toggle-item"><input type="checkbox" id="showVelocity"> ความเร็ว <span style="color:#e74c3c;">→</span></label>
+            <label class="toggle-item"><input type="checkbox" id="showPath" checked> เส้นทาง</label>
+            <label class="toggle-item"><input type="checkbox" id="showGrid"> ตาราง</label>
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-header"><span id="mass1Name">มวลของดวงอาทิตย์</span></div>
+            <input type="range" id="mass1Slider" min="0.5" max="2.0" step="0.1" value="1.0">
+            <div class="slider-labels"><span>0.5</span><span id="mass1LabelStar">ดวงอาทิตย์</span><span>1.5</span><span>2.0</span></div>
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-header"><span id="mass2Name">มวลของโลก</span></div>
+            <input type="range" id="mass2Slider" min="0.5" max="2.0" step="0.1" value="1.0">
+            <div class="slider-labels"><span>0.5</span><span id="mass2LabelStar">โลก</span><span>1.5</span><span>2.0</span></div>
+        </div>
+    </div>
+
+    <div id="bottom-panel" class="panel">
+        <div class="playback-controls">
+            <button class="btn-icon play-pause" id="btnPlayPause">⏸</button>
+            <button class="btn-icon step" id="btnStep">⏭</button>
+        </div>
+        <div class="time-box" id="time-display">0 วัน</div>
+        <button class="btn-icon" id="btnReset" style="background:#e67e22;" title="เริ่มใหม่">🔄</button>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const showGravity = document.getElementById('showGravity');
+    const showVelocity = document.getElementById('showVelocity');
+    const showPath = document.getElementById('showPath');
+    const showGrid = document.getElementById('showGrid');
+    const mass1Slider = document.getElementById('mass1Slider');
+    const mass2Slider = document.getElementById('mass2Slider');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnStep = document.getElementById('btnStep');
+    const btnReset = document.getElementById('btnReset');
+    const timeDisplay = document.getElementById('time-display');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const speedRadios = document.querySelectorAll('input[name="speed"]');
+    
+    const m1Name = document.getElementById('mass1Name');
+    const m1Label = document.getElementById('mass1LabelStar');
+    const m2Name = document.getElementById('mass2Name');
+    const m2Label = document.getElementById('mass2LabelStar');
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const G = 1; 
+    let isPlaying = true;
+    let timePassed = 0;
+    let speedMultiplier = 1; 
+    let currentMode = 1;
+    let timeScale = 1; 
+    let frameCount = 0;
+    let bodies = [];
+    let particles = []; 
+
+    class Body {
+        constructor(name, x, y, vx, vy, baseMass, radius, color, trailColor) {
+            this.name = name; this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+            this.baseMass = baseMass; this.mass = baseMass; 
+            this.baseRadius = radius; this.radius = radius; 
+            this.color = color; this.trailColor = trailColor;
+            this.trail = []; this.forceX = 0; this.forceY = 0;
+            this.isAnchor = false; 
+        }
+    }
+
+    function loadPreset(mode) {
+        bodies = [];
+        particles = []; 
+        timePassed = 0;
+        frameCount = 0;
+        let cx = canvas.width / 2;
+        let cy = canvas.height / 2;
+
+        if (mode === 1) { // ☀️🌍
+            updateLabels('ดวงอาทิตย์', 'โลก');
+            timeScale = 1; 
+            let r = 250; let v = (2 * Math.PI * r) / 365; let mSun = (v * v * r) / G; 
+            // ปรับรัศมีตั้งต้น ดวงอาทิตย์ 35 -> 55, โลก 12 -> 20
+            let sun = new Body("Sun", cx, cy, 0, 0, mSun, 55, '#f1c40f', 'transparent');
+            sun.isAnchor = true;
+            let earth = new Body("Earth", cx + r, cy, 0, -v, 3000, 20, '#3498db', '#bdc3c7');
+            bodies.push(sun, earth);
+        } 
+        else if (mode === 2) { // ☀️🌍🌑
+            updateLabels('ดวงอาทิตย์', 'โลก');
+            timeScale = 1;
+            let r_se = 250; let v_se = (2 * Math.PI * r_se) / 365; let mSun = (v_se * v_se * r_se) / G;
+            // ปรับรัศมีตั้งต้น ดวงอาทิตย์ 40 -> 60, โลก 12 -> 20, ดวงจันทร์ 4 -> 8
+            let sun = new Body("Sun", cx, cy, 0, 0, mSun, 60, '#f1c40f', 'transparent');
+            sun.isAnchor = true;
+            let r_em = 45; // ขยายระยะห่างดวงจันทร์นิดหน่อยไม่ให้ชนโลกง่ายไป
+            let v_em = (2 * Math.PI * r_em) / 27.3; let mEarth = (v_em * v_em * r_em) / G;
+            let earth = new Body("Earth", cx + r_se, cy, 0, -v_se, mEarth, 20, '#3498db', '#3498db');
+            let moon = new Body("Moon", cx + r_se + r_em, cy, 0, -(v_se + v_em), 1, 8, '#ecf0f1', '#ecf0f1');
+            bodies.push(sun, earth, moon);
+        }
+        else if (mode === 3) { // 🌍🌑
+            updateLabels('โลก', 'ดวงจันทร์');
+            timeScale = 0.2; 
+            let r = 150; let v = (2 * Math.PI * r) / 27.3; let mEarth = (v * v * r) / G;
+            // ปรับรัศมีตั้งต้น โลก 30 -> 50, ดวงจันทร์ 8 -> 15
+            let earth = new Body("Earth", cx, cy, 0, 0, mEarth, 50, '#3498db', 'transparent');
+            earth.isAnchor = true;
+            let moon = new Body("Moon", cx + r, cy, 0, -v, 100, 15, '#ecf0f1', '#ecf0f1');
+            bodies.push(earth, moon);
+        }
+        else if (mode === 4) { // 🌍🛰️
+            updateLabels('โลก', 'ดาวเทียม');
+            timeScale = 0.5; 
+            let r = 100; // ขยายระยะห่างดาวเทียมให้สมดุลกับโลกที่ใหญ่ขึ้น
+            let v = (2 * Math.PI * r) / 90; let mEarth = (v * v * r) / G;
+            // ปรับรัศมีตั้งต้น โลก 40 -> 65, ดาวเทียม 5 -> 10
+            let earth = new Body("Earth", cx, cy, 0, 0, mEarth, 65, '#3498db', 'transparent');
+            earth.isAnchor = true;
+            let satellite = new Body("Satellite", cx + r, cy, 0, -v, 1, 10, '#e74c3c', '#e74c3c');
+            bodies.push(earth, satellite);
+        }
+
+        mass1Slider.value = 1.0; mass2Slider.value = 1.0;
+        applyMassSliders();
+    }
+
+    function updateLabels(name1, name2) {
+        m1Name.innerText = "มวลของ" + name1; m1Label.innerText = name1;
+        m2Name.innerText = "มวลของ" + name2; m2Label.innerText = name2;
+    }
+
+    function applyMassSliders() {
+        if(bodies.length >= 2) {
+            let val1 = parseFloat(mass1Slider.value);
+            let val2 = parseFloat(mass2Slider.value);
+            bodies[0].mass = bodies[0].baseMass * val1;
+            bodies[1].mass = bodies[1].baseMass * val2;
+            bodies[0].radius = bodies[0].baseRadius * Math.cbrt(val1);
+            bodies[1].radius = bodies[1].baseRadius * Math.cbrt(val2);
+        }
+    }
+
+    function formatTime(value) {
+        if (currentMode === 4) return Math.floor(value) + " นาที";
+        let totalDays = Math.floor(value);
+        let y = Math.floor(totalDays / 365);
+        let d = totalDays % 365;
+        if (y > 0) return `${y} ปี ${d} วัน`;
+        return `${d} วัน`;
+    }
+
+    function createExplosion(x, y, color1, color2, size) {
+        let numParticles = Math.min(Math.floor(size * 3), 150);
+        let colors = [color1, color2, '#e74c3c', '#f39c12', '#fff'];
+        for(let i=0; i<numParticles; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * (size * 0.1) + 1;
+            let color = colors[Math.floor(Math.random() * colors.length)];
+            if(color === 'transparent') color = '#f39c12';
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                life: 1.0, decay: Math.random() * 0.02 + 0.01,
+                color: color, size: Math.random() * 4 + 1
+            });
+        }
+    }
+
+    function updatePhysics(dt) {
+        if (dt === 0) return;
+        applyMassSliders();
+
+        const SUBSTEPS = 50; 
+        let h = dt / SUBSTEPS;
+
+        for (let step = 0; step < SUBSTEPS; step++) {
+            for (let b of bodies) { b.forceX = 0; b.forceY = 0; }
+
+            for (let i = 0; i < bodies.length; i++) {
+                for (let j = i + 1; j < bodies.length; j++) {
+                    let b1 = bodies[i]; let b2 = bodies[j];
+                    let dx = b2.x - b1.x; let dy = b2.y - b1.y;
+                    let distSq = dx*dx + dy*dy; let dist = Math.sqrt(distSq);
+                    if (dist < 1) continue;
+
+                    let force = (G * b1.mass * b2.mass) / distSq;
+                    let fx = force * (dx / dist); let fy = force * (dy / dist);
+
+                    b1.forceX += fx; b1.forceY += fy;
+                    b2.forceX -= fx; b2.forceY -= fy;
+                }
+            }
+
+            for (let b of bodies) {
+                if (b.isAnchor) continue; 
+                b.vx += (b.forceX / b.mass) * h;
+                b.vy += (b.forceY / b.mass) * h;
+                b.x += b.vx * h;
+                b.y += b.vy * h;
+            }
+        }
+
+        let destroyedIndices = new Set();
+        for (let i = 0; i < bodies.length; i++) {
+            for (let j = i + 1; j < bodies.length; j++) {
+                let b1 = bodies[i]; let b2 = bodies[j];
+                let dx = b2.x - b1.x; let dy = b2.y - b1.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < (b1.radius + b2.radius) * 0.7) { 
+                    destroyedIndices.add(i);
+                    destroyedIndices.add(j);
+                    createExplosion((b1.x + b2.x)/2, (b1.y + b2.y)/2, b1.color, b2.color, b1.radius + b2.radius);
+                }
+            }
+        }
+
+        if (destroyedIndices.size > 0) {
+            bodies = bodies.filter((_, idx) => !destroyedIndices.has(idx));
+        }
+
+        frameCount++;
+        if (showPath.checked) {
+            if (frameCount % 6 === 0) { 
+                for (let b of bodies) {
+                    if (b.isAnchor) continue;
+                    b.trail.push({x: b.x, y: b.y});
+                    if (b.trail.length > 300) b.trail.shift();
+                }
+            }
+        } else {
+            bodies.forEach(b => b.trail = []);
+        }
+
+        timePassed += dt;
+        timeDisplay.innerText = formatTime(timePassed);
+    }
+
+    function drawVector(x, y, vx, vy, color, isForce, label) {
+        if (vx === 0 && vy === 0) return;
+        let length = Math.sqrt(vx*vx + vy*vy);
+        let displayLen = isForce ? Math.log10(length + 1) * 20 : length * 4; 
+        if (displayLen > 100) displayLen = 100;
+        if (displayLen < 15) displayLen = 15;
+
+        let dx = (vx / length) * displayLen; let dy = (vy / length) * displayLen;
+        const head = 8; const angle = Math.atan2(dy, dx);
+        
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy);
+        ctx.lineTo(x + dx - head * Math.cos(angle - Math.PI / 6), y + dy - head * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(x + dx, y + dy);
+        ctx.lineTo(x + dx - head * Math.cos(angle + Math.PI / 6), y + dy - head * Math.sin(angle + Math.PI / 6));
+        ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+
+        ctx.fillStyle = color;
+        if (label === 'Fg') {
+            ctx.font = "italic 16px Arial"; ctx.fillText("F", x + dx + 5, y + dy + 15);
+            ctx.font = "10px Arial"; ctx.fillText("g", x + dx + 14, y + dy + 20);
+        } else if (label === 'v') {
+            ctx.font = "italic 16px Arial"; ctx.fillText("v", x + dx + 8, y + dy + 15);
+        }
+    }
+
+    function drawEarth(x, y, radius) {
+        ctx.save(); ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#3498db'; ctx.fill(); ctx.clip(); 
+        ctx.fillStyle = '#2ecc71'; 
+        ctx.beginPath(); ctx.arc(x - radius*0.3, y - radius*0.2, radius*0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + radius*0.4, y + radius*0.1, radius*0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x - radius*0.1, y + radius*0.5, radius*0.3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+        let grad = ctx.createRadialGradient(x - radius*0.3, y - radius*0.3, radius*0.1, x, y, radius);
+        grad.addColorStop(0, 'rgba(255,255,255,0.3)'); grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+        ctx.fillStyle = grad; ctx.fill(); ctx.restore();
+    }
+
+    function drawMoon(x, y, radius) {
+        ctx.save(); ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ecf0f1'; ctx.fill(); ctx.clip();
+        ctx.fillStyle = '#bdc3c7'; 
+        ctx.beginPath(); ctx.arc(x - radius*0.3, y - radius*0.2, radius*0.25, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + radius*0.4, y + radius*0.3, radius*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+        let grad = ctx.createRadialGradient(x - radius*0.3, y - radius*0.3, radius*0.1, x, y, radius);
+        grad.addColorStop(0, 'rgba(255,255,255,0.4)'); grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+        ctx.fillStyle = grad; ctx.fill(); ctx.restore();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (showGrid.checked) {
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+            for (let y = 0; y < canvas.height; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+        }
+
+        if (isPlaying) { updatePhysics(speedMultiplier * timeScale); }
+
+        if (showPath.checked) {
+            for (let b of bodies) {
+                if (b.trail.length > 1) {
+                    ctx.beginPath(); ctx.moveTo(b.trail[0].x, b.trail[0].y);
+                    for (let i = 1; i < b.trail.length; i++) ctx.lineTo(b.trail[i].x, b.trail[i].y);
+                    ctx.strokeStyle = b.trailColor; ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+                }
+            }
+        }
+
+        for (let b of bodies) {
+            if (showGravity.checked && (b.forceX !== 0 || b.forceY !== 0)) drawVector(b.x, b.y, b.forceX, b.forceY, '#3498db', true, 'Fg');
+            if (showVelocity.checked && (b.vx !== 0 || b.vy !== 0)) drawVector(b.x, b.y, b.vx, b.vy, '#e74c3c', false, 'v');
+        }
+
+        for (let b of bodies) {
+            if (b.name === "Sun") {
+                let gradient = ctx.createRadialGradient(b.x, b.y, b.radius * 0.2, b.x, b.y, b.radius);
+                gradient.addColorStop(0, '#fffebb'); gradient.addColorStop(0.4, '#f1c40f'); gradient.addColorStop(1, '#f39c12'); 
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = b.radius * 0.9; ctx.shadowColor = '#e67e22'; ctx.fill(); ctx.shadowBlur = 0; 
+            } else if (b.name === "Earth") {
+                drawEarth(b.x, b.y, b.radius); 
+            } else if (b.name === "Moon") {
+                drawMoon(b.x, b.y, b.radius); 
+            } else if (b.name === "Satellite") {
+                let r = b.radius;
+                ctx.fillStyle = '#bdc3c7'; ctx.fillRect(b.x - r*1.6, b.y - r*0.8, r*3.2, r*1.6);
+                ctx.fillStyle = '#34495e'; ctx.fillRect(b.x - r*0.8, b.y - r*0.4, r*1.6, r*0.8);
+            } else {
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fillStyle = b.color; ctx.fill();
+            }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            if (isPlaying) {
+                p.x += p.vx * speedMultiplier; 
+                p.y += p.vy * speedMultiplier;
+                p.life -= p.decay * speedMultiplier;
+            }
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            } else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        btnPlayPause.innerText = isPlaying ? "⏸" : "▶";
+    });
+
+    btnReset.addEventListener('click', () => loadPreset(currentMode));
+    btnStep.addEventListener('click', () => { if(!isPlaying) updatePhysics(speedMultiplier * timeScale); });
+
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            let targetBtn = e.currentTarget;
+            presetBtns.forEach(b => b.classList.remove('active'));
+            targetBtn.classList.add('active');
+            currentMode = parseInt(targetBtn.dataset.mode);
+            loadPreset(currentMode);
+        });
+    });
+
+    speedRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            speedMultiplier = parseFloat(e.target.value);
+        });
+    });
+
+    loadPreset(1);
+    animate();
+
+</script>
+</body>
+</html>
