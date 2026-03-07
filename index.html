@@ -1,27 +1,44 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity and Orbits - Bigger Initial Sizes</title>
+    <title>Gravity and Orbits - Ultimate Physics Engine (Fixed UI)</title>
     <style>
         body {
             margin: 0; overflow: hidden; background-color: #000;
             background-image: radial-gradient(circle at center, #151515 0%, #000 100%);
             color: #fff; font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px; user-select: none;
+            font-size: 14px; 
+            /* ลบ user-select: none ออกจาก body เพื่อให้ slider เลื่อนได้ตามปกติ */
         }
         canvas { display: block; }
+
+        /* ป้องกันข้อความถูกคลุมดำเวลาคลิกปุ่มรัวๆ */
+        label, button { user-select: none; }
 
         .panel {
             background: rgba(40, 40, 40, 0.9); border: 1px solid #555;
             border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.7);
             position: absolute;
+            z-index: 100; /* บังคับให้อยู่บนสุด ป้องกัน Canvas ทับ */
         }
 
         #right-panel {
             top: 15px; right: 15px; width: 250px;
             display: flex; flex-direction: column; gap: 15px;
+        }
+
+        #physics-panel {
+            top: 15px; left: 15px; width: 220px;
+            display: flex; flex-direction: column; gap: 8px;
+            font-family: monospace; font-size: 13px;
+        }
+        .phys-row { display: flex; justify-content: space-between; }
+        .phys-val { color: #f1c40f; font-weight: bold; }
+        .phys-formula {
+            font-size: 12px; color: #aaa; margin-top: 5px; 
+            border-top: 1px dashed #555; padding-top: 8px; line-height: 1.5;
         }
 
         .preset-container {
@@ -82,6 +99,22 @@
 <body>
 
     <canvas id="simCanvas"></canvas>
+
+    <div id="physics-panel" class="panel">
+        <div style="font-weight:bold; font-family:'Segoe UI'; border-bottom:1px solid #555; padding-bottom:5px; margin-bottom:5px;">
+            📊 ข้อมูลทางฟิสิกส์ (ดาวบริวาร)
+        </div>
+        <div class="phys-row"><span>มวล (m):</span> <span id="val-m" class="phys-val">0</span></div>
+        <div class="phys-row"><span>รัศมี (r):</span> <span id="val-r" class="phys-val">0</span></div>
+        <div class="phys-row"><span>ความเร็ว (v):</span> <span id="val-v" class="phys-val">0</span></div>
+        <div class="phys-row"><span>ความเร่ง (a_c):</span> <span id="val-a" class="phys-val">0</span></div>
+        <div class="phys-row"><span>แรง (F_c):</span> <span id="val-f" class="phys-val" style="color:#e74c3c;">0</span></div>
+        
+        <div class="phys-formula">
+            <span style="color:#e74c3c;">F_c</span> = m × v² / r<br>
+            <span>a_c</span> = v² / r
+        </div>
+    </div>
 
     <div id="speed-panel" class="panel">
         <label class="radio-item"><input type="radio" name="speed" value="3"> ทำงานเร็ว</label>
@@ -148,6 +181,12 @@
     const m2Name = document.getElementById('mass2Name');
     const m2Label = document.getElementById('mass2LabelStar');
 
+    const valM = document.getElementById('val-m');
+    const valR = document.getElementById('val-r');
+    const valV = document.getElementById('val-v');
+    const valA = document.getElementById('val-a');
+    const valF = document.getElementById('val-f');
+
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
     resize();
@@ -181,45 +220,41 @@
         let cx = canvas.width / 2;
         let cy = canvas.height / 2;
 
-        if (mode === 1) { // ☀️🌍
+        if (mode === 1) { 
             updateLabels('ดวงอาทิตย์', 'โลก');
             timeScale = 1; 
             let r = 250; let v = (2 * Math.PI * r) / 365; let mSun = (v * v * r) / G; 
-            // ปรับรัศมีตั้งต้น ดวงอาทิตย์ 35 -> 55, โลก 12 -> 20
             let sun = new Body("Sun", cx, cy, 0, 0, mSun, 55, '#f1c40f', 'transparent');
             sun.isAnchor = true;
             let earth = new Body("Earth", cx + r, cy, 0, -v, 3000, 20, '#3498db', '#bdc3c7');
             bodies.push(sun, earth);
         } 
-        else if (mode === 2) { // ☀️🌍🌑
+        else if (mode === 2) { 
             updateLabels('ดวงอาทิตย์', 'โลก');
             timeScale = 1;
             let r_se = 250; let v_se = (2 * Math.PI * r_se) / 365; let mSun = (v_se * v_se * r_se) / G;
-            // ปรับรัศมีตั้งต้น ดวงอาทิตย์ 40 -> 60, โลก 12 -> 20, ดวงจันทร์ 4 -> 8
             let sun = new Body("Sun", cx, cy, 0, 0, mSun, 60, '#f1c40f', 'transparent');
             sun.isAnchor = true;
-            let r_em = 45; // ขยายระยะห่างดวงจันทร์นิดหน่อยไม่ให้ชนโลกง่ายไป
+            let r_em = 45; 
             let v_em = (2 * Math.PI * r_em) / 27.3; let mEarth = (v_em * v_em * r_em) / G;
             let earth = new Body("Earth", cx + r_se, cy, 0, -v_se, mEarth, 20, '#3498db', '#3498db');
             let moon = new Body("Moon", cx + r_se + r_em, cy, 0, -(v_se + v_em), 1, 8, '#ecf0f1', '#ecf0f1');
             bodies.push(sun, earth, moon);
         }
-        else if (mode === 3) { // 🌍🌑
+        else if (mode === 3) { 
             updateLabels('โลก', 'ดวงจันทร์');
             timeScale = 0.2; 
             let r = 150; let v = (2 * Math.PI * r) / 27.3; let mEarth = (v * v * r) / G;
-            // ปรับรัศมีตั้งต้น โลก 30 -> 50, ดวงจันทร์ 8 -> 15
             let earth = new Body("Earth", cx, cy, 0, 0, mEarth, 50, '#3498db', 'transparent');
             earth.isAnchor = true;
             let moon = new Body("Moon", cx + r, cy, 0, -v, 100, 15, '#ecf0f1', '#ecf0f1');
             bodies.push(earth, moon);
         }
-        else if (mode === 4) { // 🌍🛰️
+        else if (mode === 4) { 
             updateLabels('โลก', 'ดาวเทียม');
             timeScale = 0.5; 
-            let r = 100; // ขยายระยะห่างดาวเทียมให้สมดุลกับโลกที่ใหญ่ขึ้น
+            let r = 100; 
             let v = (2 * Math.PI * r) / 90; let mEarth = (v * v * r) / G;
-            // ปรับรัศมีตั้งต้น โลก 40 -> 65, ดาวเทียม 5 -> 10
             let earth = new Body("Earth", cx, cy, 0, 0, mEarth, 65, '#3498db', 'transparent');
             earth.isAnchor = true;
             let satellite = new Body("Satellite", cx + r, cy, 0, -v, 1, 10, '#e74c3c', '#e74c3c');
@@ -235,6 +270,7 @@
         m2Name.innerText = "มวลของ" + name2; m2Label.innerText = name2;
     }
 
+    // ฟังก์ชันอัปเดตมวลและขนาด (ผูกไว้กับเหตุการณ์ 'input' เพื่อให้เปลี่ยนทันทีแม้ตอนหยุดเวลา)
     function applyMassSliders() {
         if(bodies.length >= 2) {
             let val1 = parseFloat(mass1Slider.value);
@@ -245,6 +281,10 @@
             bodies[1].radius = bodies[1].baseRadius * Math.cbrt(val2);
         }
     }
+
+    // ผูก Event ให้ Slider อัปเดตทันทีที่ลาก
+    mass1Slider.addEventListener('input', applyMassSliders);
+    mass2Slider.addEventListener('input', applyMassSliders);
 
     function formatTime(value) {
         if (currentMode === 4) return Math.floor(value) + " นาที";
@@ -272,10 +312,34 @@
         }
     }
 
+    function updatePhysicsHUD() {
+        if (bodies.length > 1) {
+            let center = bodies[0];
+            let orbiter = bodies[1]; 
+            
+            let m = orbiter.mass;
+            let dx = orbiter.x - center.x;
+            let dy = orbiter.y - center.y;
+            let r = Math.sqrt(dx*dx + dy*dy);
+            let v = Math.sqrt(orbiter.vx*orbiter.vx + orbiter.vy*orbiter.vy);
+            
+            let f = Math.sqrt(orbiter.forceX*orbiter.forceX + orbiter.forceY*orbiter.forceY);
+            let a = f / m; 
+
+            valM.innerText = m.toFixed(1);
+            valR.innerText = r.toFixed(1);
+            valV.innerText = v.toFixed(3);
+            valA.innerText = a.toFixed(4);
+            valF.innerText = f.toFixed(1);
+        } else {
+            valM.innerText = "-"; valR.innerText = "-"; valV.innerText = "-";
+            valA.innerText = "-"; valF.innerText = "-";
+        }
+    }
+
     function updatePhysics(dt) {
         if (dt === 0) return;
-        applyMassSliders();
-
+        
         const SUBSTEPS = 50; 
         let h = dt / SUBSTEPS;
 
@@ -314,8 +378,7 @@
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
                 if (dist < (b1.radius + b2.radius) * 0.7) { 
-                    destroyedIndices.add(i);
-                    destroyedIndices.add(j);
+                    destroyedIndices.add(i); destroyedIndices.add(j);
                     createExplosion((b1.x + b2.x)/2, (b1.y + b2.y)/2, b1.color, b2.color, b1.radius + b2.radius);
                 }
             }
@@ -402,6 +465,7 @@
         }
 
         if (isPlaying) { updatePhysics(speedMultiplier * timeScale); }
+        updatePhysicsHUD(); // ให้ค่าอัปเดตตลอดเวลาแม้กดหยุดชั่วคราวแล้วเลื่อนสไลเดอร์
 
         if (showPath.checked) {
             for (let b of bodies) {
@@ -449,8 +513,7 @@
             if (p.life <= 0) {
                 particles.splice(i, 1);
             } else {
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                 ctx.globalAlpha = 1.0;
             }
